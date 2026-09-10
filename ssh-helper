@@ -1,0 +1,54 @@
+#!/bin/sh
+set -eu
+
+SELF="$0"
+if command -v readlink >/dev/null 2>&1; then
+  while [ -L "$SELF" ]; do
+    LINK="$(readlink "$SELF")"
+    case "$LINK" in
+      /* | [A-Za-z]:[\\/]*) SELF="$LINK" ;;
+      *) SELF="$(dirname "$SELF")/$LINK" ;;
+    esac
+  done
+fi
+HELPER_DIR="$(cd "$(dirname "$SELF")" && pwd)"
+
+usage() {
+  echo "usage: ssh-helper {register|check|revoke|backup|show|audit|keygen|agent|test} [args...]" >&2
+  echo "  register  新ホストに公開鍵を登録 (例: ssh-helper register -J bastion,internal -H 192.0.2.60 new1)" >&2
+  echo "  check     全ホストの鍵認証を一括確認" >&2
+  echo "  revoke    公開鍵を剥奪 (例: ssh-helper revoke oldhost)" >&2
+  echo "  backup    configバックアップの list/restore" >&2
+  echo "  show      ssh -G の解決結果を表示 (例: ssh-helper show myserver)" >&2
+  echo "  audit     各ホストのauthorized_keysを監査" >&2
+  echo "  keygen    ローカル鍵がなければ生成" >&2
+  echo "  agent     agent起動確認＋鍵登録 (statusで表示のみ)" >&2
+  echo "  test      自動テストを実行" >&2
+  exit "${1:-0}"
+}
+
+[ $# -ge 1 ] || usage 0
+CMD="$1"; shift
+
+case "$CMD" in
+  register) exec "$HELPER_DIR/register-ssh-key.sh" "$@" ;;
+  check) exec "$HELPER_DIR/ssh-check.sh" "$@" ;;
+  revoke) exec "$HELPER_DIR/revoke-ssh-key.sh" "$@" ;;
+  backup) exec "$HELPER_DIR/ssh-backup.sh" "$@" ;;
+  show) exec "$HELPER_DIR/ssh-show.sh" "$@" ;;
+  audit) exec "$HELPER_DIR/ssh-audit.sh" "$@" ;;
+  keygen) exec "$HELPER_DIR/ssh-keygen-helper.sh" "$@" ;;
+  agent) exec "$HELPER_DIR/ssh-agent-helper.sh" "$@" ;;
+  test)
+    if command -v python3 >/dev/null 2>&1; then
+      exec python3 "$HELPER_DIR/tests/run_tests.py"
+    elif command -v python >/dev/null 2>&1; then
+      exec python "$HELPER_DIR/tests/run_tests.py"
+    else
+      echo "error: python3 が必要です" >&2
+      exit 2
+    fi
+    ;;
+  help|-h|--help) usage 0 ;;
+  *) echo "error: 不明なコマンド: $CMD" >&2; usage 2 ;;
+esac
