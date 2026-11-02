@@ -62,7 +62,7 @@ pub fn create_ed25519() -> Result<()> {
     Ok(())
 }
 
-fn generate_ed25519(key: &Path, _pubk: &Path) -> Result<()> {
+fn generate_ed25519(key: &Path, pubk: &Path) -> Result<()> {
     let c = run_capture("ssh-keygen", &["-V"]);
     if c.code == 127 {
         bail!("ssh-keygen not found");
